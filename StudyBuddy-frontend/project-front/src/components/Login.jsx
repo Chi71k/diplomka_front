@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { apiLogin } from '../api'
+import AuthLayout from './AuthLayout'
 
-const API_BASE = import.meta.env.VITE_API_BASE || ''
-
-const Login = ({ onSwitch, onSuccess }) => {
+const Login = ({ onSuccess }) => {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -12,62 +14,57 @@ const Login = ({ onSwitch, onSuccess }) => {
     e.preventDefault()
     setError('')
     if (!email || !password) {
-      setError('Email и пароль обязательны')
+      setError('Enter email and password')
       return
     }
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include',
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Ошибка входа')
-        return
-      }
-      // backend returns tokens in body; pass access token to parent
+      const data = await apiLogin(email, password)
       if (onSuccess) onSuccess(data.accessToken)
+      navigate('/profile')
     } catch (err) {
-      setError('Сетевая ошибка')
+      setError(err.error || 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="auth-card">
-      <h2 className="auth-title">Вход</h2>
-      <form onSubmit={handleSubmit} className="auth-form">
-        <input
-          className="auth-input"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-        />
-        <input
-          className="auth-input"
-          type="password"
-          placeholder="Пароль"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          disabled={loading}
-        />
-        <button className="auth-button" type="submit" disabled={loading}>
-          {loading ? 'Загрузка...' : 'Войти'}
-        </button>
-      </form>
-      {error && <div style={{ color: 'crimson', textAlign: 'left' }}>{error}</div>}
-      <div className="auth-switch">
-        Нет аккаунта? <button className="linkish" onClick={onSwitch}>Зарегистрироваться</button>
+    <AuthLayout>
+      <div className="auth-form-wrap">
+        <h2 className="auth-form-title">Welcome back</h2>
+        <p className="auth-form-subtitle">Sign in to find study partners</p>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <label className="auth-label">Email</label>
+          <input
+            className="auth-input"
+            type="email"
+            placeholder="you@university.edu"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+          />
+          <label className="auth-label">Password</label>
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
+          />
+          {error && <div className="auth-error">{error}</div>}
+          <button className="auth-button auth-button-primary" type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+        <p className="auth-switch">
+          Don&apos;t have an account? <Link to="/register" className="auth-link">Sign up</Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   )
 }
 

@@ -1,0 +1,13 @@
+{
+  "name": "studybuddy-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "StudyBuddy frontend — app lives in project-front/",
+  "scripts": {
+    "dev": "npm run dev --prefix project-front",
+    "build": "npm run build --prefix project-front",
+    "lint": "npm run lint --prefix project-front",
+    "preview": "npm run preview --prefix project-front",
+    "install:all": "cd project-front && npm install"
+  }
+}

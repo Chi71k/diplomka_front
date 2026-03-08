@@ -1,88 +1,91 @@
 import React, { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { apiGetProfile } from './api'
 import './App.css'
 import Login from './components/Login'
 import Register from './components/Register'
+import AppLayout from './components/AppLayout'
 import Profile from './components/Profile'
+import CourseList from './components/courses/CourseList'
+import CourseDetail from './components/courses/CourseDetail'
+import CourseForm from './components/courses/CourseForm'
 
-const API_BASE = import.meta.env.VITE_API_BASE || ''
+function AppRoutes() {
+  const { token, setToken, profile, setProfile } = useAuth()
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
-const App = () => {
-	const [mode, setMode] = useState('login')
-	const [profile, setProfile] = useState(null)
-	const [loadingProfile, setLoadingProfile] = useState(true)
-	const [accessToken, setAccessToken] = useState(() => sessionStorage.getItem('accessToken') || null)
+  const fetchProfile = async () => {
+    setLoadingProfile(true)
+    try {
+      if (token) {
+        const data = await apiGetProfile()
+        setProfile(data)
+      } else {
+        setProfile(null)
+      }
+    } catch {
+      setProfile(null)
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
 
-	// try to load profile on mount; if cookie is present backend will return data
-	const fetchProfile = async (token) => {
-		setLoadingProfile(true)
-		try {
-			const header = token || accessToken ? { Authorization: `Bearer ${token || accessToken}` } : {}
-			const res = await fetch(`${API_BASE}/api/v1/users/me`, {
-				method: 'GET',
-				credentials: 'include',
-				headers: header,
-			})
-			if (res.ok) {
-				const data = await res.json()
-				setProfile(data)
-			} else {
-				setProfile(null)
-			}
-		} catch (e) {
-			console.error(e)
-			setProfile(null)
-		} finally {
-			setLoadingProfile(false)
-		}
-	}
+  useEffect(() => {
+    if (token) {
+      fetchProfile()
+    } else {
+      setLoadingProfile(false)
+      setProfile(null)
+    }
+  }, [token])
 
-	useEffect(() => {
-		fetchProfile()
-	}, [])
+  const handleLoginSuccess = (newToken) => {
+    if (newToken) setToken(newToken)
+  }
 
-	const handleLoginSuccess = (token) => {
-		if (token) {
-			setAccessToken(token)
-			sessionStorage.setItem('accessToken', token)
-		}
-		// immediately fetch profile using the provided token
-		fetchProfile(token)
-	}
+  const handleRegisterSuccess = (newToken) => {
+    if (newToken) setToken(newToken)
+  }
 
-	const handleRegisterSuccess = (token) => {
-		if (token) {
-			setAccessToken(token)
-			sessionStorage.setItem('accessToken', token)
-		}
-		fetchProfile(token)
-	}
+  const handleLogout = () => {
+    setProfile(null)
+    setToken(null)
+  }
 
-	const handleLogout = () => {
-		// clear local state and stored token
-		setProfile(null)
-		setAccessToken(null)
-		sessionStorage.removeItem('accessToken')
-	}
+  if (loadingProfile && token) {
+    return <div className="app-root app-loading">Loading...</div>
+  }
 
-	if (loadingProfile) {
-		return <div className="app-root">Загрузка...</div>
-	}
-
-	if (profile) {
-		return <Profile profile={profile} onLogout={handleLogout} />
-	}
-
-	return (
-		<div className="app-root">
-			<div className="auth-container">
-				{mode === 'login' ? (
-					<Login onSwitch={() => setMode('register')} onSuccess={handleLoginSuccess} />
-				) : (
-					<Register onSwitch={() => setMode('login')} onSuccess={handleRegisterSuccess} />
-				)}
-			</div>
-		</div>
-	)
+  return (
+    <Routes>
+      <Route path="/login" element={
+        token ? <Navigate to="/profile" replace /> : <Login onSuccess={handleLoginSuccess} />
+      } />
+      <Route path="/register" element={
+        token ? <Navigate to="/profile" replace /> : <Register onSuccess={handleRegisterSuccess} />
+      } />
+      <Route path="/" element={token ? <AppLayout onLogout={handleLogout} /> : <Navigate to="/login" replace />}>
+        <Route index element={<Navigate to="/profile" replace />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="courses" element={<CourseList />} />
+        <Route path="courses/new" element={<CourseForm />} />
+        <Route path="courses/:id" element={<CourseDetail />} />
+        <Route path="courses/:id/edit" element={<CourseForm edit />} />
+      </Route>
+      <Route path="*" element={<Navigate to={token ? '/profile' : '/login'} replace />} />
+    </Routes>
+  )
 }
+
+const App = () => (
+  <AuthProvider>
+    <BrowserRouter>
+      <div className="app-root">
+        <AppRoutes />
+      </div>
+    </BrowserRouter>
+  </AuthProvider>
+)
 
 export default App

@@ -8,13 +8,16 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      // Route users API to users service, other API calls to auth service
+      '/api/v1/courses': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/v1/users': {
         target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
       },
-      // Proxy remaining API calls (auth) to auth service
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
