@@ -1,0 +1,308 @@
+openapi: 3.0.3
+info:
+  title: StudyBuddy API
+  description: Backend API for StudyBuddy (auth + users + courses for MVP v1). Align with frontend and mobile.
+  version: 0.2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Auth service (local)
+  - url: http://localhost:8081
+    description: Users service (local)
+  - url: http://localhost:8082
+    description: Courses service (local)
+
+tags:
+  - name: auth
+    description: Registration and login
+  - name: users
+    description: Profile and interests
+  - name: courses
+    description: Course catalog
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [auth]
+      responses:
+        '200':
+          description: OK
+
+  /api/v1/auth/register:
+    post:
+      summary: Register new user
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or email already exists
+
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/v1/users/me:
+    get:
+      summary: Get current user profile
+      tags: [users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Unauthorized
+    patch:
+      summary: Update current user profile
+      tags: [ users ]
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Unauthorized
+
+  /api/v1/courses:
+    get:
+      summary: List courses
+      tags: [courses]
+      parameters:
+        - in: query
+          name: subject
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+    post:
+      summary: Create a course
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /api/v1/courses/{id}:
+    get:
+      summary: Get course by ID
+      tags: [courses]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '404':
+          description: Not found
+    patch:
+      summary: Update course
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCourseRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+    delete:
+      summary: Delete course
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        firstName: { type: string }
+        lastName: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: seconds }
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        bio: { type: string }
+        avatarUrl: { type: string, format: uri }
+        interests: { type: array, items: { $ref: '#/components/schemas/Interest' } }
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        bio: { type: string }
+        avatarUrl: { type: string }
+
+    Interest:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    Course:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        subject: { type: string }
+        level: { type: string }
+        ownerUserId: { type: string, format: uuid }
+
+    CreateCourseRequest:
+      type: object
+      required: [title, description, subject, level]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        subject: { type: string }
+        level: { type: string }
+
+    UpdateCourseRequest:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        subject: { type: string }
+        level: { type: string }
