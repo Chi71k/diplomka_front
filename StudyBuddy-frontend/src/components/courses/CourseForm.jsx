@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { apiGetCourse, apiCreateCourse, apiUpdateCourse } from '../../api'
+import { useToast } from '../../context/ToastContext'
 
 const CourseForm = ({ edit = false }) => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [loading, setLoading] = useState(edit)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [validationError, setValidationError] = useState('')
   const [form, setForm] = useState({ title: '', description: '', subject: '', level: '' })
 
   useEffect(() => {
@@ -23,7 +25,7 @@ const CourseForm = ({ edit = false }) => {
           level: data.level || '',
         })
       } catch {
-        if (!cancelled) setError('Course not found')
+        if (!cancelled) toast.error('Course not found')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -35,21 +37,23 @@ const CourseForm = ({ edit = false }) => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.title || !form.description || !form.subject || !form.level) {
-      setError('Fill in all fields')
+      setValidationError('Fill in all fields')
       return
     }
+    setValidationError('')
     setSaving(true)
-    setError('')
     try {
       if (edit) {
         await apiUpdateCourse(id, form)
+        toast.success('Course updated')
         navigate('/courses')
       } else {
         const created = await apiCreateCourse(form)
+        toast.success('Course created')
         navigate(`/courses/${created.id}`)
       }
     } catch (e) {
-      setError(e.error || 'Failed to save')
+      toast.error(e.error || 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -105,7 +109,7 @@ const CourseForm = ({ edit = false }) => {
             onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
             required
           />
-          {error && <div className="auth-error">{error}</div>}
+          {validationError && <div className="auth-error">{validationError}</div>}
           <div className="profile-form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : (edit ? 'Save' : 'Create')}

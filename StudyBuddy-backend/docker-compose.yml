@@ -4,7 +4,7 @@
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     container_name: studybuddy-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-studybuddy}
@@ -19,17 +19,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  search-service:
-    build: ./search-service
-    ports:
-      - "8083:8083"
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-studybuddy}:${POSTGRES_PASSWORD:-studybuddy}@postgres:5432/${POSTGRES_DB:-studybuddy}?sslmode=disable
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-    depends_on:
-      postgres:
-        condition: service_healthy
 
 
 volumes:

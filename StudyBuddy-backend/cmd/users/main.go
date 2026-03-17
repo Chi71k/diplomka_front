@@ -37,13 +37,10 @@ func main() {
 	updateMeUC := usecase.NewUpdateMe(profileRepo)
 	deleteMeUC := usecase.NewDeleteMe(profileRepo)
 
-	searchURL := getEnv("SEARCH_SERVICE_URL", "http://localhost:8083")
-
 	handler := &delivery.UsersHandler{
-		GetMe:            getMeUC,
-		UpdateMe:         updateMeUC,
-		DeleteMe:         deleteMeUC,
-		SearchServiceURL: searchURL,
+		GetMe:    getMeUC,
+		UpdateMe: updateMeUC,
+		DeleteMe: deleteMeUC,
 	}
 	router := delivery.NewRouter(handler, []byte(jwtSecret))
 

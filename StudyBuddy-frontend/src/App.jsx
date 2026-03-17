@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ToastProvider } from './context/ToastContext'
 import { apiGetProfile } from './api'
 import './App.css'
 import Login from './components/Login'
@@ -81,11 +82,13 @@ function AppRoutes() {
 
 const App = () => (
   <AuthProvider>
-    <BrowserRouter>
-      <div className="app-root">
-        <AppRoutes />
-      </div>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <div className="app-root">
+          <AppRoutes />
+        </div>
+      </BrowserRouter>
+    </ToastProvider>
   </AuthProvider>
 )
 

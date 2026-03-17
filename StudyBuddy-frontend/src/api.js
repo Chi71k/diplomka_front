@@ -1,5 +1,11 @@
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
+// Callback, который AuthContext регистрирует для разлогина при 401
+let onUnauthorized = null
+export function setOnUnauthorized(fn) {
+  onUnauthorized = fn
+}
+
 function getToken() {
   return localStorage.getItem('accessToken')
 }
@@ -18,6 +24,42 @@ async function handleResponse(res) {
     throw { status: res.status, ...data }
   }
   return data
+}
+
+// Обёртка над fetch: при 401 пробует обновить токен и повторяет запрос.
+// При неудаче — вызывает onUnauthorized (разлогин).
+async function apiFetch(url, options) {
+  let res = await fetch(url, options)
+
+  if (res.status === 401) {
+    try {
+      const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!refreshRes.ok) throw new Error('refresh failed')
+
+      const refreshData = await refreshRes.json().catch(() => ({}))
+      if (refreshData.accessToken) {
+        localStorage.setItem('accessToken', refreshData.accessToken)
+      }
+
+      // Повторяем исходный запрос с новым токеном
+      const newToken = getToken()
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+        },
+      })
+    } catch {
+      if (onUnauthorized) onUnauthorized()
+      throw { status: 401, error: 'Session expired. Please log in again.' }
+    }
+  }
+
+  return res
 }
 
 // --- Auth ---
@@ -43,7 +85,7 @@ export async function apiRegister({ email, password, firstName, lastName }) {
 
 // --- Users (profile) ---
 export async function apiGetProfile() {
-  const res = await fetch(`${API_BASE}/api/v1/users/me`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me`, {
     method: 'GET',
     headers: authHeaders(),
     credentials: 'include',
@@ -52,7 +94,7 @@ export async function apiGetProfile() {
 }
 
 export async function apiUpdateProfile(body) {
-  const res = await fetch(`${API_BASE}/api/v1/users/me`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me`, {
     method: 'PUT',
     headers: authHeaders(),
     credentials: 'include',
@@ -62,7 +104,7 @@ export async function apiUpdateProfile(body) {
 }
 
 export async function apiDeleteProfile() {
-  const res = await fetch(`${API_BASE}/api/v1/users/me`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me`, {
     method: 'DELETE',
     headers: authHeaders(),
     credentials: 'include',
@@ -80,7 +122,7 @@ export async function apiListCourses(params = {}) {
   if (params.offset != null) q.set('offset', params.offset)
   const query = q.toString()
   const url = `${API_BASE}/api/v1/courses${query ? `?${query}` : ''}`
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     method: 'GET',
     headers: authHeaders(),
     credentials: 'include',
@@ -89,7 +131,7 @@ export async function apiListCourses(params = {}) {
 }
 
 export async function apiGetCourse(id) {
-  const res = await fetch(`${API_BASE}/api/v1/courses/${id}`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses/${id}`, {
     method: 'GET',
     headers: authHeaders(),
     credentials: 'include',
@@ -98,7 +140,7 @@ export async function apiGetCourse(id) {
 }
 
 export async function apiCreateCourse(body) {
-  const res = await fetch(`${API_BASE}/api/v1/courses`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses`, {
     method: 'POST',
     headers: authHeaders(),
     credentials: 'include',
@@ -108,7 +150,7 @@ export async function apiCreateCourse(body) {
 }
 
 export async function apiUpdateCourse(id, body) {
-  const res = await fetch(`${API_BASE}/api/v1/courses/${id}`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses/${id}`, {
     method: 'PATCH',
     headers: authHeaders(),
     credentials: 'include',
@@ -118,7 +160,7 @@ export async function apiUpdateCourse(id, body) {
 }
 
 export async function apiDeleteCourse(id) {
-  const res = await fetch(`${API_BASE}/api/v1/courses/${id}`, {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
     credentials: 'include',

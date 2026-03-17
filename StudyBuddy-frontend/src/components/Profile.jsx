@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { apiGetProfile, apiUpdateProfile, apiDeleteProfile } from '../api'
 
 const Profile = () => {
   const navigate = useNavigate()
   const { profile, setProfile, setToken } = useAuth()
+  const toast = useToast()
   const [loading, setLoading] = useState(!profile)
-  const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ firstName: '', lastName: '', bio: '', avatarUrl: '' })
   const [saving, setSaving] = useState(false)
@@ -15,7 +17,7 @@ const Profile = () => {
   const [avatarError, setAvatarError] = useState(false)
 
   const load = async () => {
-    setError('')
+    setLoadError('')
     setLoading(true)
     try {
       const data = await apiGetProfile()
@@ -27,7 +29,7 @@ const Profile = () => {
         avatarUrl: data.avatarUrl || '',
       })
     } catch (e) {
-      setError(e.error || 'Failed to load profile')
+      setLoadError(e.error || 'Failed to load profile')
     } finally {
       setLoading(false)
     }
@@ -53,7 +55,6 @@ const Profile = () => {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
-    setError('')
     try {
       const body = {}
       if (form.firstName !== (profile?.firstName ?? '')) body.firstName = form.firstName
@@ -63,8 +64,9 @@ const Profile = () => {
       const data = await apiUpdateProfile(body)
       setProfile(data)
       setEditing(false)
+      toast.success('Profile saved')
     } catch (err) {
-      setError(err.error || 'Failed to save')
+      toast.error(err.error || 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -76,14 +78,13 @@ const Profile = () => {
       return
     }
     setSaving(true)
-    setError('')
     try {
       await apiDeleteProfile()
       setProfile(null)
       setToken(null)
       navigate('/login')
     } catch (err) {
-      setError(err.error || 'Failed to delete account')
+      toast.error(err.error || 'Failed to delete account')
     } finally {
       setSaving(false)
     }
@@ -100,11 +101,11 @@ const Profile = () => {
     )
   }
 
-  if (error && !profile) {
+  if (loadError && !profile) {
     return (
       <div className="page-content">
         <div className="profile-card">
-          <div className="auth-error">{error}</div>
+          <div className="auth-error">{loadError}</div>
           <button onClick={load} className="btn btn-primary">Try again</button>
         </div>
       </div>
@@ -186,7 +187,6 @@ const Profile = () => {
               placeholder="https://example.com/photo.jpg"
             />
             <p className="profile-field-hint">Use a direct link to an image (URL that opens the image only).</p>
-            {error && <div className="auth-error">{error}</div>}
             <div className="profile-form-actions">
               <button type="submit" className="btn btn-primary" disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}

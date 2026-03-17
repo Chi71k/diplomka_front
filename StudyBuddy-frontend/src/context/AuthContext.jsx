@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
-import { getToken } from '../api'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { getToken, setOnUnauthorized } from '../api'
 
 const AuthContext = createContext(null)
 
@@ -17,6 +17,10 @@ export function AuthProvider({ children }) {
       setProfile(null)
     }
   }, [])
+
+  useEffect(() => {
+    setOnUnauthorized(() => setToken(null))
+  }, [setToken])
 
   const value = {
     token,

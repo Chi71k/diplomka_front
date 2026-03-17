@@ -1,12 +1,8 @@
 package delivery
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"log"
 	"net/http"
-	"time"
 
 	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/httputil"
@@ -16,10 +12,9 @@ import (
 
 // UsersHandler exposes user profile HTTP endpoints.
 type UsersHandler struct {
-	GetMe           usecase.GetMe
-	UpdateMe        usecase.UpdateMe
-	DeleteMe        usecase.DeleteMe
-	SearchServiceURL string // e.g. "http://localhost:8083" — empty disables indexing
+	GetMe    usecase.GetMe
+	UpdateMe usecase.UpdateMe
+	DeleteMe usecase.DeleteMe
 }
 
 // UserProfileResponse matches OpenAPI UserProfile (minimal).
@@ -90,29 +85,6 @@ func (h *UsersHandler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 		httputil.Error(w, http.StatusInternalServerError, "failed to update profile")
 		return
 	}
-
-	// Fire-and-forget: re-index the user in the search service.
-	// Never blocks the main response; errors are only logged.
-	if h.SearchServiceURL != "" {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			body, _ := json.Marshal(map[string]string{"user_id": userID})
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.SearchServiceURL+"/index", bytes.NewReader(body))
-			if err != nil {
-				log.Printf("search index: new request: %v", err)
-				return
-			}
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				log.Printf("search index: %v", err)
-				return
-			}
-			resp.Body.Close()
-		}()
-	}
-
 	httputil.JSON(w, http.StatusOK, profileToResponse(profile))
 }
 
