@@ -12,6 +12,8 @@ import CourseList from './components/courses/CourseList'
 import CourseDetail from './components/courses/CourseDetail'
 import CourseForm from './components/courses/CourseForm'
 import Dashboard from './components/Dashboard'
+import Interests from './components/Interests'
+
 function AppRoutes() {
   const { token, setToken, profile, setProfile } = useAuth()
   const [loadingProfile, setLoadingProfile] = useState(true)
@@ -74,6 +76,7 @@ function AppRoutes() {
         <Route path="courses/new" element={<CourseForm />} />
         <Route path="courses/:id" element={<CourseDetail />} />
         <Route path="courses/:id/edit" element={<CourseForm edit />} />
+        <Route path="interests" element={<Interests />} />
       </Route>
       <Route path="*" element={<Navigate to={token ? '/profile' : '/login'} replace />} />
     </Routes>

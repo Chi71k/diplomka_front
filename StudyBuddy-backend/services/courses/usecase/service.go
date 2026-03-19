@@ -49,7 +49,10 @@ func (s *Service) Update(input UpdateCourseInput) (*domain.Course, error) {
 		return nil, err
 	}
 	if existing == nil {
-		return nil, nil
+		return nil, domain.ErrCourseNotFound
+	}
+	if existing.OwnerUserID != input.RequestingUser {
+		return nil, domain.ErrForbidden
 	}
 	if input.Title != nil {
 		existing.Title = *input.Title
@@ -69,6 +72,16 @@ func (s *Service) Update(input UpdateCourseInput) (*domain.Course, error) {
 	return existing, nil
 }
 
-func (s *Service) Delete(id string) error {
-	return s.repo.Delete(id)
+func (s *Service) Delete(input DeleteCourseInput) error {
+	existing, err := s.repo.GetByID(input.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return domain.ErrCourseNotFound
+	}
+	if existing.OwnerUserID != input.RequestingUser {
+		return domain.ErrForbidden
+	}
+	return s.repo.Delete(input.ID)
 }

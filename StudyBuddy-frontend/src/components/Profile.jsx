@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { apiGetProfile, apiUpdateProfile, apiDeleteProfile } from '../api'
+import { apiGetProfile, apiUpdateProfile, apiDeleteProfile, apiGetMyInterests } from '../api'
 
 const Profile = () => {
   const navigate = useNavigate()
@@ -15,13 +15,15 @@ const Profile = () => {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
+  const [interests, setInterests] = useState([])
 
   const load = async () => {
     setLoadError('')
     setLoading(true)
     try {
-      const data = await apiGetProfile()
+      const [data, interestsData] = await Promise.all([apiGetProfile(), apiGetMyInterests()])
       setProfile(data)
+      setInterests(interestsData.items ?? [])
       setForm({
         firstName: data.firstName || '',
         lastName: data.lastName || '',
@@ -43,6 +45,9 @@ const Profile = () => {
         bio: profile.bio || '',
         avatarUrl: profile.avatarUrl || '',
       })
+      apiGetMyInterests()
+        .then((interestsData) => setInterests(interestsData.items ?? []))
+        .catch(() => toast.error('Failed to load interests'))
     } else {
       load()
     }
@@ -222,6 +227,19 @@ const Profile = () => {
           </>
         )}
       </section>
+
+      {interests.length > 0 && (
+        <section className="profile-card">
+          <h3 className="profile-card-title">Interests</h3>
+          <div className="interests-grid" style={{marginTop: '8px'}}>
+            {interests.map((interest) => (
+              <span key={interest.ID} className="interest-chip selected" style={{cursor: 'default', pointerEvents: 'none'}}>
+                {interest.Name}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="profile-card profile-danger-card">
         <h3 className="profile-card-title">Delete account</h3>

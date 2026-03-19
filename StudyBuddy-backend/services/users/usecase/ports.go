@@ -9,9 +9,3 @@ type ProfileRepository interface {
 	// DeleteByUserID performs logical deletion for the user (e.g. deactivate).
 	DeleteByUserID(userID string) error
 }
-
-// InterestRepository for listing and resolving interests.
-type InterestRepository interface {
-	ListAll() ([]domain.Interest, error)
-	GetByIDs(ids []string) ([]domain.Interest, error)
-}

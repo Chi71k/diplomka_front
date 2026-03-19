@@ -10,12 +10,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PgInterestRepository implements InterestRepository using the interests table.
 type PgInterestRepository struct {
 	pool *pgxpool.Pool
 }
 
-// NewPgInterestRepository creates a new PgInterestRepository.
 func NewPgInterestRepository(pool *pgxpool.Pool) usecase.InterestRepository {
 	return &PgInterestRepository{pool: pool}
 }
@@ -25,7 +23,7 @@ func (r *PgInterestRepository) ListAll() ([]domain.Interest, error) {
 	defer cancel()
 
 	const q = `
-SELECT id, name
+SELECT id::text, name
 FROM interests
 ORDER BY name;
 `
@@ -54,9 +52,9 @@ func (r *PgInterestRepository) GetByIDs(ids []string) ([]domain.Interest, error)
 	defer cancel()
 
 	const q = `
-SELECT id, name
+SELECT id::text, name
 FROM interests
-WHERE id = ANY($1::uuid[]);
+WHERE id::text = ANY($1);
 `
 	rows, err := r.pool.Query(ctx, q, ids)
 	if err != nil {

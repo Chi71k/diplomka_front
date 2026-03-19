@@ -13,15 +13,15 @@ The backend is split into **microservices**, each following **clean architecture
 
 ## Service boundaries (MVP)
 
-| Service    | Responsibility                          | MVP scope                          |
-|-----------|------------------------------------------|------------------------------------|
-| **Auth**  | Register, login, issue/refresh JWT       | Email+password, JWT access/refresh |
-| **Users** | Profile, interests, universities, degrees| User CRUD, interests, profile      |
-| Courses   | Course catalog, user–course relation     | Week 3                             |
-| Availability | User availability slots                | Week 3                             |
-| Matching  | Candidates, match requests, invites      | Week 4                             |
-| Reviews   | Reviews and ratings (or under Users)     | Week 5                             |
-| Points    | Point transactions, totals (gamification)| Week 6                             |
+| Service      | Responsibility                          | MVP scope                          |
+|-------------|------------------------------------------|------------------------------------|
+| **Auth**    | Register, login, issue/refresh JWT       | Email+password, JWT access/refresh |
+| **Users**   | Profile, interests, universities, degrees| User CRUD, interests, profile      |
+| **Courses** | Course catalog, user–course relation     | Week 3                             |
+| Availability| User availability slots                  | Week 3                             |
+| Matching    | Candidates, match requests, invites      | Week 4                             |
+| Reviews     | Reviews and ratings (or under Users)     | Week 5                             |
+| Points      | Point transactions, totals (gamification)| Week 6                             |
 
 For the first weeks, **Auth** and **Users** are enough. Add others as the plan progresses.
 
@@ -35,7 +35,8 @@ Order of implementation:
 
 1. **Auth service** — register, login, JWT (access + refresh). No DB in Week 1 is OK (stub in memory); add DB and migrations in Week 2.
 2. **Users service** — profile CRUD, interests. Validates JWT (using shared `pkg/auth`), reads `UserID` from token.
-3. Later: API Gateway (single entrypoint, route to Auth/Users), then Courses, Availability, Matching, etc.
+3. **Courses service** — course catalog CRUD, JWT-protected authoring.
+4. Later: API Gateway (single entrypoint, route to Auth/Users/Courses), then Availability, Matching, etc.
 
 ## Clean architecture (per service)
 

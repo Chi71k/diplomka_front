@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/db"
 	"studybuddy/backend/services/courses/delivery"
 	"studybuddy/backend/services/courses/repository"
@@ -41,17 +40,10 @@ func main() {
 		Update: svc,
 		Delete: svc,
 	}
-	router := delivery.NewRouter(handler)
-
-	// Protect mutating endpoints with JWT middleware.
-	protect := auth.Middleware([]byte(jwtSecret))
-	mux := http.NewServeMux()
-	mux.Handle("/health", router)
-	mux.Handle("/api/v1/courses", protect(http.HandlerFunc(handler.HandleCoursesCollection)))
-	mux.Handle("/api/v1/courses/", protect(http.HandlerFunc(handler.HandleCourseItem)))
+	router := delivery.NewRouter(handler, []byte(jwtSecret))
 
 	log.Printf("courses service listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, router); err != nil {
 		log.Fatal(err)
 	}
 }

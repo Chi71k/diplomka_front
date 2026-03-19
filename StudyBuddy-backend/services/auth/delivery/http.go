@@ -64,7 +64,7 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 			httputil.Error(w, http.StatusConflict, "email already registered")
 			return
 		default:
-			httputil.Error(w, http.StatusInternalServerError, "registration failed")
+			httputil.Error(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	}

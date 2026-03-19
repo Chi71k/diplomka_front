@@ -31,18 +31,29 @@ func main() {
 	defer pool.Close()
 
 	profileRepo := repository.NewPgProfileRepository(pool)
-	_ = repository.NewPgInterestRepository(pool) // placeholder for future interests endpoints
+	interestRepo := repository.NewPgInterestRepository(pool)
+	userIntrestRepo := repository.NewPgUserInterestRepository(pool)
 
 	getMeUC := usecase.NewGetMe(profileRepo)
 	updateMeUC := usecase.NewUpdateMe(profileRepo)
 	deleteMeUC := usecase.NewDeleteMe(profileRepo)
 
-	handler := &delivery.UsersHandler{
+	listInterestsUC := usecase.NewListInterests(interestRepo)
+	getMyInterestsUC := usecase.NewGetMyInterests(userIntrestRepo)
+	replaceMyInterestsUC := usecase.NewReplaceMyInterests(interestRepo, userIntrestRepo)
+
+	usersHandler := &delivery.UsersHandler{
 		GetMe:    getMeUC,
 		UpdateMe: updateMeUC,
 		DeleteMe: deleteMeUC,
 	}
-	router := delivery.NewRouter(handler, []byte(jwtSecret))
+	intrestsHandler := &delivery.InterestsHandler{
+		ListCatalog: listInterestsUC,
+		GetMine:     getMyInterestsUC,
+		ReplaceMine: replaceMyInterestsUC,
+	}
+
+	router := delivery.NewRouter(usersHandler, intrestsHandler, []byte(jwtSecret))
 
 	log.Printf("users service listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {

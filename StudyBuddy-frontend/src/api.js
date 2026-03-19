@@ -170,3 +170,32 @@ export async function apiDeleteCourse(id) {
 }
 
 export { getToken }
+
+// --- Interests ---
+export async function apiGetInterestsCatalog() {
+  const res = await apiFetch(`${API_BASE}/api/v1/interests`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)  
+}
+
+export async function apiGetMyInterests() {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me/interests`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)  
+}
+
+export async function apiReplaceMyInterests(interests) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me/interests`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ interest_ids: interests }),
+  })
+  return handleResponse(res)
+}

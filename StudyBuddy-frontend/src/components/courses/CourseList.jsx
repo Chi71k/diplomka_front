@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { apiListCourses } from '../../api'
+import { useAuth } from '../../context/AuthContext'
 
 const CourseList = () => {
+  const { profile } = useAuth()
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -14,7 +16,8 @@ const CourseList = () => {
     setError('')
     try {
       const data = await apiListCourses({ subject: subject || undefined, level: level || undefined, limit: 50 })
-      setCourses(Array.isArray(data) ? data : [])
+      const all = Array.isArray(data) ? data : []
+      setCourses(profile ? all.filter(c => c.ownerUserId === profile.id) : all)
     } catch (e) {
       setError(e.error || 'Failed to load courses')
     } finally {
