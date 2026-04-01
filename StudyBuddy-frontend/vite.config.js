@@ -2,9 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(),],
+  plugins: [react(), tailwindcss()],
   server: {
     host: true,
     proxy: {
@@ -18,8 +17,18 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-        '/api/v1/interests': {
+      '/api/v1/interests': {
         target: 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/v1/availability': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/v1/matching': {
+        target: 'http://localhost:8084',
         changeOrigin: true,
         secure: false,
       },

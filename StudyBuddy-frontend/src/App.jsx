@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
@@ -13,9 +13,12 @@ import CourseDetail from './components/courses/CourseDetail'
 import CourseForm from './components/courses/CourseForm'
 import Dashboard from './components/Dashboard'
 import Interests from './components/Interests'
+import Candidates from './components/matching/Candidates'
+import Requests from './components/matching/Requests'
+import Availability from './components/availability/Availability'
 
 function AppRoutes() {
-  const { token, setToken, profile, setProfile } = useAuth()
+  const { token, setToken, setProfile } = useAuth()
   const [loadingProfile, setLoadingProfile] = useState(true)
 
   const fetchProfile = async () => {
@@ -77,6 +80,9 @@ function AppRoutes() {
         <Route path="courses/:id" element={<CourseDetail />} />
         <Route path="courses/:id/edit" element={<CourseForm edit />} />
         <Route path="interests" element={<Interests />} />
+        <Route path="matching/candidates" element={<Candidates />} />
+        <Route path="matching/requests" element={<Requests />} />
+        <Route path="availability" element={<Availability />} />
       </Route>
       <Route path="*" element={<Navigate to={token ? '/profile' : '/login'} replace />} />
     </Routes>

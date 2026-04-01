@@ -34,7 +34,7 @@ export default function Interests() {
         setSaving(true)
         try {
             await apiReplaceMyInterests([...selected])
-            toast.success('Interests save')
+            toast.success('Interests saved')
         } catch (error) {
             toast.error('Failed to save interests')
         } finally {

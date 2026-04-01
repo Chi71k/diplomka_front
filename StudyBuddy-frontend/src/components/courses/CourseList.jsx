@@ -27,7 +27,7 @@ const CourseList = () => {
 
   useEffect(() => {
     load()
-  }, [subject, level])
+  }, [subject, level, profile?.id])
 
   return (
     <div className="page-content">

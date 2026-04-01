@@ -199,3 +199,127 @@ export async function apiReplaceMyInterests(interests) {
   })
   return handleResponse(res)
 }
+
+// --- Users by ID ---
+export async function apiGetUserById(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/${id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+// --- Availability ---
+export async function apiGetSlots() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/slots`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiCreateSlot(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/slots`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiDeleteSlot(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/slots/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+export async function apiGetGCalConnectUrl() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/connect`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiImportGCal() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/import`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiDisconnectGCal(deleteSlots = false) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/disconnect`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ deleteSlots }),
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+// --- Matching ---
+export async function apiGetCandidates(limit = 20) {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/candidates?limit=${limit}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiGetMatchRequests(params = {}) {
+  const q = new URLSearchParams()
+  if (params.status) q.set('status', params.status)
+  if (params.limit != null) q.set('limit', params.limit)
+  if (params.offset != null) q.set('offset', params.offset)
+  const query = q.toString()
+  const url = `${API_BASE}/api/v1/matching/requests${query ? `?${query}` : ''}`
+  const res = await apiFetch(url, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiSendMatchRequest(receiverId, message = '') {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/requests`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ receiverId, message }),
+  })
+  return handleResponse(res)
+}
+
+export async function apiRespondMatchRequest(id, accept) {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/requests/${id}/respond`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ accept }),
+  })
+  return handleResponse(res)
+}
+
+export async function apiCancelMatchRequest(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/requests/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
