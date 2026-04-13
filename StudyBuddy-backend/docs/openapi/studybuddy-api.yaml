@@ -1,0 +1,1355 @@
+openapi: 3.0.3
+info:
+  title: StudyBuddy API
+  description: Backend API for StudyBuddy (auth + users + courses + availability + matching for MVP v1). Align with frontend and mobile.
+  version: 0.4.0
+
+servers:
+  - url: http://localhost:8080
+    description: Auth service (local)
+  - url: http://localhost:8081
+    description: Users service (local)
+  - url: http://localhost:8082
+    description: Courses service (local)
+  - url: http://localhost:8083
+    description: Availability service (local)
+  - url: http://localhost:8084
+    description: Matching service (local)
+
+tags:
+  - name: auth
+    description: Registration and login
+  - name: users
+    description: Profile and interests
+  - name: courses
+    description: Course catalog
+  - name: availability
+    description: Weekly availability slots
+  - name: gcal
+    description: Google Calendar integration
+  - name: matching
+    description: Study-partner candidate discovery and match requests
+
+paths:
+
+  # ── Auth ────────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      summary: Health check
+      tags: [auth]
+      responses:
+        '200':
+          description: OK
+
+  /api/v1/auth/register:
+    post:
+      summary: Register new user
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Users ───────────────────────────────────────────────────────────────────
+
+  /api/v1/users/me:
+    get:
+      summary: Get current user profile
+      tags: [users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update current user profile
+      tags: [users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete (deactivate) current user account
+      tags: [users]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Account deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/interests:
+    get:
+      summary: List interest catalog
+      tags: [users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Interest'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/users/me/interests:
+    get:
+      summary: Get my interests
+      tags: [users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Interest'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Replace my interests
+      description: Replaces the full set of interests for the current user. Pass an empty array to clear all interests.
+      tags: [users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceInterestsRequest'
+      responses:
+        '200':
+          description: OK — updated interest list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Interest'
+        '400':
+          description: One or more interest IDs do not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Courses ─────────────────────────────────────────────────────────────────
+
+  /api/v1/courses:
+    get:
+      summary: List courses
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: subject
+          schema:
+            type: string
+          description: Filter by subject name
+        - in: query
+          name: level
+          schema:
+            type: string
+          description: Filter by level (e.g. beginner, intermediate, advanced)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+    post:
+      summary: Create a course
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/courses/{id}:
+    get:
+      summary: Get course by ID
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Partially update a course
+      description: Only the owner of the course may update it.
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCourseRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — caller does not own this course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a course
+      description: Only the owner of the course may delete it.
+      tags: [courses]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — caller does not own this course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Availability ─────────────────────────────────────────────────────────────
+
+  /api/v1/availability/slots:
+    get:
+      summary: List my availability slots
+      description: Returns all recurring weekly availability slots for the authenticated user, ordered by day_of_week then start_time.
+      tags: [availability]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Slot'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create an availability slot
+      description: |
+        Adds a new recurring weekly availability window.
+        `dayOfWeek` uses ISO convention: 0 = Monday, 6 = Sunday.
+        `startTime` and `endTime` must be 24-hour `HH:MM`.
+        `timezone` must be a valid IANA name (e.g. `Asia/Almaty`, `UTC`).
+      tags: [availability]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSlotRequest'
+      responses:
+        '201':
+          description: Slot created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Slot'
+        '400':
+          description: Validation error — invalid day, time format, timezone, or end_time before start_time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Slot overlaps with an existing slot on the same day
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/availability/slots/{id}:
+    delete:
+      summary: Delete an availability slot
+      description: Deletes the slot with the given ID. The authenticated user must own the slot.
+      tags: [availability]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — slot belongs to a different user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Slot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/availability/gcal/connect:
+    get:
+      summary: Get Google Calendar OAuth URL
+      description: |
+        Returns the Google OAuth 2.0 consent screen URL.
+        The client should redirect the user (or open a popup) to `authUrl`.
+        After the user approves, Google redirects to `/api/v1/availability/gcal/callback`.
+      tags: [gcal]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GCalConnectResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/availability/gcal/callback:
+    get:
+      summary: Google Calendar OAuth callback
+      description: |
+        Google redirects the user's browser here after they approve or deny consent.
+        **Not protected by JWT** — identity is verified via the HMAC-signed `state` parameter.
+        On success returns an HTML page that posts `GCAL_CONNECTED` to `window.opener`
+        (for popup flows) and closes the window.
+        Clients should not call this endpoint directly.
+      tags: [gcal]
+      parameters:
+        - in: query
+          name: code
+          required: false
+          schema:
+            type: string
+          description: One-time authorization code from Google (present on success)
+        - in: query
+          name: state
+          required: false
+          schema:
+            type: string
+          description: HMAC-signed state value echoed back by Google
+        - in: query
+          name: error
+          required: false
+          schema:
+            type: string
+          description: Error code when the user denies consent (e.g. `access_denied`)
+      responses:
+        '200':
+          description: Connected — HTML confirmation page
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: User denied consent, missing parameters, or invalid/expired state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to exchange code or persist connection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/availability/gcal/import:
+    post:
+      summary: Import slots from Google Calendar
+      description: |
+        Fetches the user's Google Calendar events for the next 4 weeks, identifies
+        recurring weekly time patterns, and replaces the current availability slots
+        with the imported ones.
+        Requires Google Calendar to be connected first via `/api/v1/availability/gcal/connect`.
+      tags: [gcal]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Import successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GCalImportResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Google Calendar sync is disabled for this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Google Calendar is not connected — call `/gcal/connect` first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to fetch or persist events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/availability/gcal/disconnect:
+    delete:
+      summary: Disconnect Google Calendar
+      description: |
+        Removes the stored OAuth connection for the authenticated user.
+        Idempotent — disconnecting when not connected is a no-op.
+        Pass `{ "deleteSlots": true }` to also delete all imported availability slots.
+        Defaults to `false` (slots are kept after disconnecting).
+      tags: [gcal]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GCalDisconnectRequest'
+      responses:
+        '204':
+          description: Disconnected (or was already disconnected)
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to remove connection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Matching ─────────────────────────────────────────────────────────────────
+
+  /api/v1/matching/candidates:
+    get:
+      summary: List study-partner candidates
+      description: |
+        Returns a ranked list of users who are potential study partners for the
+        authenticated user. Candidates are scored using a weighted composite of:
+        - **40 %** — Jaccard similarity of interest sets
+        - **40 %** — Weekly availability overlap (overlapping minutes / requester's total minutes)
+        - **20 %** — Proportion of shared courses
+
+        Users who already have a pending or accepted match with the requester are
+        excluded. Results are sorted descending by `overallScore`.
+      tags: [matching]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Maximum number of candidates to return
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MatchCandidate'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/matching/requests:
+    get:
+      summary: List my match requests
+      description: |
+        Returns all match requests where the authenticated user is either the
+        requester or the receiver, ordered by `createdAt` descending.
+      tags: [matching]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+          description: Filter by status. Omit to return all statuses.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+          description: Maximum number of results
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of results to skip (for pagination)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MatchRequest'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Send a match request
+      description: |
+        Sends a study-partner match request from the authenticated user to another user.
+
+        **Rules:**
+        - Cannot send a request to yourself.
+        - Cannot send a request if a pending or accepted match already exists between
+          the two users (in either direction). A new request is allowed once a previous
+          one is declined or canceled.
+      tags: [matching]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMatchRequestBody'
+      responses:
+        '201':
+          description: Match request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '400':
+          description: Validation error — missing `receiverId` or self-match attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A pending or accepted match already exists between these users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/matching/requests/{id}/respond:
+    post:
+      summary: Accept or decline a match request
+      description: |
+        Allows the **receiver** of a pending match request to accept or decline it.
+
+        **Rules:**
+        - Only the receiver may respond. The requester gets `403`.
+        - Only pending requests can be responded to. Any other status returns `409`.
+
+        Set `accept: true` to accept, `accept: false` to decline.
+      tags: [matching]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Match request ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RespondMatchRequestBody'
+      responses:
+        '200':
+          description: OK — returns the updated match request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchRequest'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — caller is not the receiver of this request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Match request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Match is not in pending state — cannot respond to it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/matching/requests/{id}:
+    delete:
+      summary: Cancel a match request
+      description: |
+        Allows the **requester** to cancel a pending match request they sent.
+
+        **Rules:**
+        - Only the requester may cancel. The receiver gets `403`.
+        - Only pending requests can be canceled. Any other status returns `409`.
+      tags: [matching]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Match request ID
+      responses:
+        '204':
+          description: Canceled — no content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — caller did not send this request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Match request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Match is not in pending state — cannot cancel it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ── Components ─────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          minLength: 8
+          example: securepassword1
+        firstName:
+          type: string
+          example: Alice
+        lastName:
+          type: string
+          example: Smith
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          example: securepassword1
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT access token (15 min by default)
+        refreshToken:
+          type: string
+          description: Long-lived refresh token (7 days by default)
+        expiresIn:
+          type: integer
+          description: Seconds until the access token expires
+
+    # ── Users ─────────────────────────────────────────────────────────────────
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        interests:
+          type: array
+          items:
+            $ref: '#/components/schemas/Interest'
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+
+    Interest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Mathematics
+
+    ReplaceInterestsRequest:
+      type: object
+      required: [interest_ids]
+      properties:
+        interest_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Full replacement set of interest IDs. Pass an empty array to clear.
+          example: ["a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
+
+    # ── Courses ───────────────────────────────────────────────────────────────
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Linear Algebra
+        description:
+          type: string
+          example: Vectors, matrices, and transformations.
+        subject:
+          type: string
+          example: Mathematics
+        level:
+          type: string
+          example: intermediate
+        ownerUserId:
+          type: string
+          format: uuid
+
+    CreateCourseRequest:
+      type: object
+      required: [title, description, subject, level]
+      properties:
+        title:
+          type: string
+          example: Linear Algebra
+        description:
+          type: string
+          example: Vectors, matrices, and transformations.
+        subject:
+          type: string
+          example: Mathematics
+        level:
+          type: string
+          example: intermediate
+
+    UpdateCourseRequest:
+      type: object
+      description: All fields are optional — only provided fields are updated.
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        subject:
+          type: string
+        level:
+          type: string
+
+    # ── Availability ──────────────────────────────────────────────────────────
+
+    Slot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: "ISO weekday: 0 = Monday, 6 = Sunday"
+          example: 0
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "10:00"
+          description: 24-hour HH:MM in the slot's timezone
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "12:00"
+          description: 24-hour HH:MM in the slot's timezone
+        timezone:
+          type: string
+          example: Asia/Almaty
+          description: IANA timezone name
+
+    CreateSlotRequest:
+      type: object
+      required: [startTime, endTime, timezone]
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          default: 0
+          description: "ISO weekday: 0 = Monday, 6 = Sunday"
+          example: 0
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "10:00"
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "12:00"
+        timezone:
+          type: string
+          example: Asia/Almaty
+
+    GCalConnectResponse:
+      type: object
+      properties:
+        authUrl:
+          type: string
+          format: uri
+          description: Google OAuth 2.0 consent screen URL — redirect or open as popup
+
+    GCalImportResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+          description: All slots now stored for the user after the import
+        imported:
+          type: integer
+          description: Number of slots imported from Google Calendar
+
+    GCalDisconnectRequest:
+      type: object
+      properties:
+        deleteSlots:
+          type: boolean
+          default: false
+          description: When true, all availability slots are deleted along with the OAuth connection
+
+    # ── Matching ──────────────────────────────────────────────────────────────
+
+    MatchStatus:
+      type: string
+      enum: [pending, accepted, declined, canceled]
+      description: |
+        Lifecycle of a match request:
+        - `pending`  — sent, awaiting receiver's response
+        - `accepted` — receiver accepted
+        - `declined` — receiver declined
+        - `canceled` — requester withdrew the request
+
+    SlotOverlap:
+      type: object
+      description: A shared weekly time window between the requester and a candidate.
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: "ISO weekday: 0 = Monday, 6 = Sunday"
+          example: 0
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "10:00"
+          description: Start of the overlapping window (HH:MM in requester's timezone)
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "12:00"
+          description: End of the overlapping window (HH:MM in requester's timezone)
+        timezone:
+          type: string
+          example: Asia/Almaty
+          description: IANA timezone of the requester's slot used for display
+
+    MatchCandidate:
+      type: object
+      description: A ranked study-partner candidate returned by the discovery algorithm.
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: The candidate's user ID
+        firstName:
+          type: string
+          example: Bob
+        lastName:
+          type: string
+          example: Jones
+        bio:
+          type: string
+          example: Passionate about linear algebra and machine learning.
+        avatarUrl:
+          type: string
+          format: uri
+        commonCourses:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Course IDs that both the requester and this candidate own
+        commonSlots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotOverlap'
+          description: Weekly time windows when both users are available
+        overallScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: |
+            Composite compatibility score (0–1).
+            Weighted as: 40 % interest overlap + 40 % availability overlap + 20 % course overlap.
+          example: 0.72
+
+    MatchRequest:
+      type: object
+      description: A match request between two users.
+      properties:
+        id:
+          type: string
+          format: uuid
+        requesterId:
+          type: string
+          format: uuid
+          description: User who sent the request
+        receiverId:
+          type: string
+          format: uuid
+          description: User who received the request
+        status:
+          $ref: '#/components/schemas/MatchStatus'
+        message:
+          type: string
+          description: Optional intro message from the requester
+          example: "Hey, want to study Linear Algebra together?"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-25T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-03-25T10:05:00Z"
+
+    SendMatchRequestBody:
+      type: object
+      required: [receiverId]
+      properties:
+        receiverId:
+          type: string
+          format: uuid
+          description: ID of the user to send the match request to
+        message:
+          type: string
+          description: Optional intro message shown to the receiver
+          maxLength: 500
+          example: "Hey, want to study Linear Algebra together?"
+
+    RespondMatchRequestBody:
+      type: object
+      required: [accept]
+      properties:
+        accept:
+          type: boolean
+          description: "`true` to accept the request, `false` to decline"
+
+    # ── Shared ────────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "a pending or accepted match already exists between these users"

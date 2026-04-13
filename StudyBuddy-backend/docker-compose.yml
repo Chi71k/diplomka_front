@@ -1,0 +1,25 @@
+# StudyBuddy backend - local development
+# Usage: docker compose up -d
+# Then run services locally (go run ./cmd/...) or in IDE
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: studybuddy-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-studybuddy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-studybuddy}
+      POSTGRES_DB: ${POSTGRES_DB:-studybuddy}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-studybuddy} -d ${POSTGRES_DB:-studybuddy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+volumes:
+  postgres_data:

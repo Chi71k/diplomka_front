@@ -1,0 +1,326 @@
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+
+
+function getToken() {
+  return localStorage.getItem('accessToken')
+}
+
+function authHeaders() {
+  const token = getToken()
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
+
+async function handleResponse(res) {
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw { status: res.status, ...data }
+  }
+  return data
+}
+
+// Обёртка над fetch: при 401 пробует обновить токен и повторяет запрос.
+// При неудаче — вызывает onUnauthorized (разлогин).
+async function apiFetch(url, options) {
+  let res = await fetch(url, options)
+
+  if (res.status === 401) {
+    try {
+      const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      // Если refresh эндпоинт не существует — не разлогиниваем, просто пробрасываем ошибку
+      if (refreshRes.status === 404) {
+        throw { status: 401, error: 'Unauthorized' }
+      }
+      if (!refreshRes.ok) throw new Error('refresh failed')
+
+      const refreshData = await refreshRes.json().catch(() => ({}))
+      if (refreshData.accessToken) {
+        localStorage.setItem('accessToken', refreshData.accessToken)
+      }
+
+      // Повторяем исходный запрос с новым токеном
+      const newToken = getToken()
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+        },
+      })
+    } catch (e) {
+      if (e.status === 401) throw e
+      // Не разлогиниваем при сетевых/proxy ошибках (502, 500) — они временные.
+      // onUnauthorized() вызывается только когда refresh-endpoint явно вернул ошибку авторизации.
+      throw { status: 401, error: 'Unauthorized' }
+    }
+  }
+
+  return res
+}
+
+// --- Auth ---
+export async function apiLogin(email, password) {
+  const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiRegister({ email, password, firstName, lastName }) {
+  const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, firstName, lastName }),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+// --- Users (profile) ---
+export async function apiGetProfile() {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiUpdateProfile(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiDeleteProfile() {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+// --- Courses ---
+export async function apiListCourses(params = {}) {
+  const q = new URLSearchParams()
+  if (params.subject) q.set('subject', params.subject)
+  if (params.level) q.set('level', params.level)
+  if (params.limit != null) q.set('limit', params.limit)
+  if (params.offset != null) q.set('offset', params.offset)
+  const query = q.toString()
+  const url = `${API_BASE}/api/v1/courses${query ? `?${query}` : ''}`
+  const res = await apiFetch(url, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiGetCourse(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses/${id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiCreateCourse(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiUpdateCourse(id, body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiDeleteCourse(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/courses/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+export { getToken }
+
+// --- Interests ---
+export async function apiGetInterestsCatalog() {
+  const res = await apiFetch(`${API_BASE}/api/v1/interests`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)  
+}
+
+export async function apiGetMyInterests() {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me/interests`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)  
+}
+
+export async function apiReplaceMyInterests(interests) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me/interests`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ interest_ids: interests }),
+  })
+  return handleResponse(res)
+}
+
+// --- Users by ID ---
+export async function apiGetUserById(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/${id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+// --- Availability ---
+export async function apiGetSlots() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/slots`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiCreateSlot(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/slots`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiDeleteSlot(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/slots/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+export async function apiGetGCalConnectUrl() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/connect`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiImportGCal() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/import`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiDisconnectGCal(deleteSlots = false) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/disconnect`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ deleteSlots }),
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+// --- Matching ---
+export async function apiGetCandidates(limit = 20) {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/candidates?limit=${limit}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiGetMatchRequests(params = {}) {
+  const q = new URLSearchParams()
+  if (params.status) q.set('status', params.status)
+  if (params.limit != null) q.set('limit', params.limit)
+  if (params.offset != null) q.set('offset', params.offset)
+  const query = q.toString()
+  const url = `${API_BASE}/api/v1/matching/requests${query ? `?${query}` : ''}`
+  const res = await apiFetch(url, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiSendMatchRequest(receiverId, message = '') {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/requests`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ receiverId, message }),
+  })
+  return handleResponse(res)
+}
+
+export async function apiRespondMatchRequest(id, accept) {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/requests/${id}/respond`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ accept }),
+  })
+  return handleResponse(res)
+}
+
+export async function apiCancelMatchRequest(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/matching/requests/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
