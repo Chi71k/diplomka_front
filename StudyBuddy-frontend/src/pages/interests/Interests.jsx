@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import {apiGetInterestsCatalog, apiGetMyInterests, apiReplaceMyInterests} from "../api";
-import {useToast} from "../context/ToastContext";
+import { apiGetInterestsCatalog, apiGetMyInterests, apiReplaceMyInterests } from "../../api";
+import { useToast } from "../../context/ToastContext";
 
 export default function Interests() {
     const toast = useToast()
@@ -17,9 +17,9 @@ export default function Interests() {
                 setCatalog(all.items ?? [])
                 setSelected(new Set((my.items ?? []).map(i => i.ID)))
             })
-            .catch(() => {toast.error('Failed to load interests')})
-            .finally(() => {if (!canceled) setLoading(false)})
-        return () => {canceled = true}
+            .catch(() => { toast.error('Failed to load interests') })
+            .finally(() => { if (!canceled) setLoading(false) })
+        return () => { canceled = true }
     }, [])
 
     function toggle(id) {
@@ -77,7 +77,7 @@ export default function Interests() {
                         onClick={() => toggle(item.ID)}
                         >
                         {item.Name}
-                      </button>  
+                      </button>
                     ))}
                 </div>
                 {catalog.length === 0 && (

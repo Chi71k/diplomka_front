@@ -13,6 +13,7 @@ func NewRouter(h *UsersHandler, ih *InterestsHandler, jwtSecret []byte) http.Han
 	mux := http.NewServeMux()
 	// Use path-only patterns for Go < 1.22; method is checked inside handlers.
 	mux.HandleFunc("/health", h.HandleHealth)
+	mux.Handle("/api/v1/users/", protect(http.HandlerFunc(h.HandleGetUserByID)))
 	mux.Handle("/api/v1/users/me", protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

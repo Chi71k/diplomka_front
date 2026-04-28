@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiRegister } from '../api'
-import AuthLayout from './AuthLayout'
+import { apiRegister } from '../../api'
+import AuthLayout from '../../components/AuthLayout'
 
 const Register = ({ onSuccess }) => {
   const navigate = useNavigate()

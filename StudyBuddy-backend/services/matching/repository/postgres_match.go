@@ -168,6 +168,9 @@ func scanMatch(row rowScanner) (*domain.Match, error) {
 
 // helpers
 func isInvalidUUID(err error) bool {
-	return strings.Contains(err.Error(), "22PO2") ||
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "22P02") ||
 		strings.Contains(err.Error(), "invalid input syntax for type uuid")
 }

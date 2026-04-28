@@ -106,6 +106,30 @@ func (h *UsersHandler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// HandleGetUserByID GET /api/v1/users/:id (requires JWT).
+func (h *UsersHandler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	const prefix = "/api/v1/users/"
+	id := r.URL.Path[len(prefix):]
+	if id == "" {
+		httputil.Error(w, http.StatusBadRequest, "missing user id")
+		return
+	}
+	profile, err := h.GetMe.GetMe(id)
+	if err != nil {
+		httputil.Error(w, http.StatusInternalServerError, "failed to get profile")
+		return
+	}
+	if profile == nil {
+		httputil.Error(w, http.StatusNotFound, "user not found")
+		return
+	}
+	httputil.JSON(w, http.StatusOK, profileToResponse(profile))
+}
+
 // HandleHealth GET /health
 func (h *UsersHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

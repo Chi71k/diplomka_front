@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/useAuth'
-import { useToast } from '../context/ToastContext'
-import { apiGetProfile, apiUpdateProfile, apiDeleteProfile, apiGetMyInterests } from '../api'
+import { useAuth } from '../../context/useAuth'
+import { useToast } from '../../context/ToastContext'
+import { apiGetProfile, apiUpdateProfile, apiDeleteProfile, apiGetMyInterests } from '../../api'
 
 const Profile = () => {
   const navigate = useNavigate()

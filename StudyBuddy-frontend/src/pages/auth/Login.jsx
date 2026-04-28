@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiLogin } from '../api'
-import AuthLayout from './AuthLayout'
+import { apiLogin } from '../../api'
+import AuthLayout from '../../components/AuthLayout'
 
 const Login = ({ onSuccess }) => {
   const navigate = useNavigate()
